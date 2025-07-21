@@ -1,0 +1,52 @@
+{
+  "name": "@teknyo/sl_nic_validator",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "prepublishOnly": "npm run build && npm run test && npm run lint"
+  },
+  "keywords": [
+    "nic",
+    "sri lanka",
+    "validation",
+    "id card",
+    "sri lankan nic",
+    "nic validation",
+    "id validation"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "Teknyo.lk <info@teknyo.lk>",
+  "license": "MIT",
+  "description": "Validate Sri Lankan NIC numbers for old and new formats (JavaScript & TypeScript).",
+  "files": [
+    "dist/"
+  ],
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.37.0",
+    "@typescript-eslint/parser": "^8.37.0",
+    "eslint": "^9.31.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsdoc": "^51.4.1",
+    "jest": "^30.0.4",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.8.3"
+  }
+}
