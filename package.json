@@ -7,13 +7,20 @@
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     }
   },
+  "sideEffects": false,
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
@@ -27,17 +34,29 @@
     "id card",
     "sri lankan nic",
     "nic validation",
-    "id validation"
+    "id validation",
+    "zod"
   ],
   "publishConfig": {
     "access": "public"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hushanthaK/sl_nic_validator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hushanthaK/sl_nic_validator/issues"
+  },
+  "homepage": "https://github.com/hushanthaK/sl_nic_validator#readme",
   "author": "Teknyo.lk <info@teknyo.lk>",
   "license": "MIT",
   "description": "Validate Sri Lankan NIC numbers for old and new formats (JavaScript & TypeScript).",
   "files": [
     "dist/"
   ],
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
@@ -45,8 +64,10 @@
     "eslint": "^9.31.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsdoc": "^51.4.1",
+    "globals": "^17.12.0",
     "jest": "^30.0.4",
     "ts-jest": "^29.4.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "zod": "^4.6.5"
   }
 }

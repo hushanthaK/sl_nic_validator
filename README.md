@@ -1,6 +1,6 @@
 # Sri Lanka NIC Validator 
 
-[![npm version](https://badge.fury.io/js/sl_nic_validator.svg)](https://badge.fury.io/js/sl_nic_validator)
+[![npm version](https://img.shields.io/npm/v/@teknyo/sl_nic_validator.svg)](https://www.npmjs.com/package/@teknyo/sl_nic_validator)
 [![Build Status](https://github.com/hushanthaK/sl_nic_validator/actions/workflows/test.yml/badge.svg)](https://github.com/hushanthaK/sl_nic_validator/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/hushanthaK/sl_nic_validator/badge.svg?branch=main)](https://coveralls.io/github/hushanthaK/sl_nic_validator?branch=main)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -12,7 +12,10 @@ A lightweight utility library for validating and extracting information from **S
 
 ✅ Format & structural validation  
 ✅ Supports both old (10-char) and new (12-digit) NIC formats  
-✅ Extracts gender, birth year, birth month, birth day  
+✅ Extracts gender, birth year, birth month, birth day, age  
+✅ Uses the official 366-day NIC calendar (February always 29 days)  
+✅ Converts old NICs to the new format  
+✅ Zod schemas for form validation  
 ✅ Returns detailed validation errors  
 ✅ TypeScript support with clear typings  
 ✅ Fully tested with Jest
@@ -22,8 +25,10 @@ A lightweight utility library for validating and extracting information from **S
 ## Installation
 
 ```bash
-npm install @teknyo/sl_nic_validator
+npm install @teknyo/sl_nic_validator zod
 ```
+
+`zod` (v4) is a peer dependency used by the schema exports.
 
 ## NIC Formats
 | Type | Format        | Example        | Notes                     |
@@ -41,28 +46,119 @@ npm install @teknyo/sl_nic_validator
 
 ## Usage
 
-##### import
-```javascript
-import { validateNIC  } from '@teknyo/sl_nic_validator';
-```
+### Validation
 
-**1. `isSimpleValidNIC(nic: string): boolean`**
-
-Validates format only.
 ```ts
+import {
+  isSimpleValidNIC,
+  isFullValidNIC,
+  getNICDetails,
+  validateNIC
+} from '@teknyo/sl_nic_validator';
+
+// Simple format validation (no logical checks)
 isSimpleValidNIC('853456789V'); // true
 isSimpleValidNIC('123');        // false
+
+// Full validation with logical checks
+isFullValidNIC('198534567890');
+// { isValid: true, errorReason: null }
+isFullValidNIC('853676789V');
+// { isValid: false, errorReason: 'Invalid day number for old NIC' }
+
+// Standard validation
+const validation = validateNIC('853456789V');
+validation.isValid;   // true
+validation.format;    // 'old'
+validation.gender;    // 'male'
+validation.birthYear; // 1985
 ```
 
-**2. `isFullValidNIC(nic: string): boolean`**
+Full validation checks the format, the birth year (1900 – current year), the day of year
+(1–366, or 501–866 for females) and that the birth date is not in the future (Sri Lanka time).
 
-Validates format + logical birth values (day, year ranges).
+### NIC details
+
 ```ts
-isFullValidNIC('199845612345'); // true
-isFullValidNIC('199813513456'); // false (invalid day)
+const details = getNICDetails('853456789V');
+
+if (details.isValid) {
+  details.gender;        // 'male'
+  details.birthYear;     // 1985
+  details.birthMonth;    // 12
+  details.birthDay;      // 10
+  details.dayOfYear;     // 345
+  details.age;           // age in years (Sri Lanka time)
+  details.normalizedNIC; // '198534506789' (new format)
+  details.birthDate;     // Date (local midnight)
+} else {
+  console.error(details.errorReason);
+}
 ```
 
-**3. `getSimpleValidNICInfo(nic: string): NICBasicDetails`**
+### Helper functions
+
+```ts
+getNICGender('853456789V');       // 'male' | 'female' | null
+getNICBirthYear('853456789V');    // 1985 | null
+getNICDayOfYear('853456789V');    // 345 | null
+getNICBirthMonth('853456789V');   // 12 | null
+getNICBirthDay('853456789V');     // 10 | null
+convertOldToNewNIC('853456789V'); // '198534506789' | null
+```
+
+### Zod schemas
+
+```ts
+import {
+  nicSimpleSchema,
+  nicFullSchema,
+  nicDetailsSchema,
+  nicSchema,
+  createNICObjectSchema
+} from '@teknyo/sl_nic_validator';
+import { z } from 'zod';
+
+nicSimpleSchema.safeParse('853456789V');   // format only
+nicFullSchema.safeParse('198534567890');   // format + logical checks
+
+const result = nicDetailsSchema.safeParse('853456789V');
+if (result.success) result.data.birthYear; // 1985 (full NICDetails object)
+
+// Custom schema
+nicSchema({
+  mode: 'full', // 'simple' | 'full' ('full' by default)
+  message: 'Please enter a valid Sri Lankan NIC number'
+});
+
+// Object schema for forms: createNICObjectSchema(fieldName = 'nic', mode = 'full')
+const userSchema = createNICObjectSchema('nic_number', 'full').extend({
+  name: z.string(),
+  email: z.string().email()
+});
+```
+
+Without a custom `message`, the schema error message is the validation error reason.
+
+### NIC calendar (`daylk`)
+
+The Sri Lankan government treats every year as having 366 days when encoding birthdays
+in NICs — February always has 29 days, even in non-leap years. `daylk` implements this:
+
+```ts
+import { daylk } from '@teknyo/sl_nic_validator';
+
+daylk.dayOfYear(3, 1);     // 61 (in every year)
+daylk.toDate(345);         // { month: 12, day: 10 }
+daylk.currentDayOfYear();  // today's NIC day of year (Sri Lanka time)
+```
+
+> Day 60 (Feb 29) is accepted in any year. For a non-leap year, `birthDate` rolls over to March 1
+> because a JavaScript `Date` cannot represent Feb 29 in that year.
+
+### Legacy functions
+
+**`getSimpleValidNICInfo(nic: string): NICBasicDetails`**
 
 Returns basic info:
 ```ts
@@ -74,7 +170,7 @@ Returns basic info:
 }
 ```
 
-**4. `getFullValidNICInfo(nic: string): NICBasicDetails`**
+**`getFullValidNICInfo(nic: string): NICBasicDetails`**
 
 Same as above but includes validation errors if invalid:
 ```ts
@@ -86,7 +182,7 @@ Same as above but includes validation errors if invalid:
 }
 ```
 
-**5. `getFullNICDetails(nic: string): NICFullDetails`**
+**`getFullNICDetails(nic: string): NICFullDetails`**
 
 Returns all extracted metadata:
 ```ts
@@ -97,27 +193,16 @@ Returns all extracted metadata:
   gender: "male",
   birthYear: 1985,
   birthMonth: 12,
-  birthDay: 11,
+  birthDay: 10,
   error: undefined
 }
 ```
 
-### Helper Functions
-
-These utilities let you build custom logic using raw NIC values.
-
-| Function                | Returns                      |
-| ----------------------- | ---------------------------- |
-| `getNICGender(nic)`     | `'male'` / `'female'` / null |
-| `getNICBirthYear(nic)`  | `number` (e.g. 1985) / null  |
-| `getNICDayOfYear(nic)`  | `number` (1–366) / null      |
-| `getNICBirthMonth(nic)` | `number` (1–12) / null       |
-| `getNICBirthDay(nic)`   | `number` (1–31) / null       |
-
 
 ## Validation Criteria
 
-Both simple and full validations check for format and logical correctness.
+Simple validation checks the format only. Full validation also checks the birth year, the day of year
+(366-day NIC calendar) and that the birth date is not in the future.
 
 #####  Old NIC (Format: YYDDDNNNNV)
 | Segment   | Description                             | Example               | Rules                                                      |
@@ -127,12 +212,12 @@ Both simple and full validations check for format and logical correctness.
 | `NNNN`    | Serial portion (not validated strictly) | `1234`                | Ignored in logic validation                                |
 | `V` / `X` | Suffix                                  | `V`                   | Must be either `V` or `X`                                  |
 
-#####  New NIC (Format: YYYYDDDNNNN)
+#####  New NIC (Format: YYYYDDDNNNNN)
 | Segment | Description     | Example               | Rules                                     |
 | ------- | --------------- | --------------------- | ----------------------------------------- |
 | `YYYY`  | Full birth year | `2000`                | Must be between **1900** and current year |
 | `DDD`   | Day of year     | `001–366` / `501–866` | Same rule as old NIC: >500 = female       |
-| `NNNN`  | Serial portion  | `5678`                | Ignored in logic validation               |
+| `NNNNN` | Serial portion  | `05678`               | Ignored in logic validation               |
 
 
 ## License
